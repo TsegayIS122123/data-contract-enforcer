@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Virtual Environment
+.venv
+venv
+env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Project specific
+outputs/week*/**/*.jsonl
+validation_reports/*.json
+violation_log/*.jsonl
+schema_snapshots/**/*.yaml
+enforcer_report/*.pdf
+enforcer_report/*.json
+
+# But keep example data for tests
+!outputs/week3/sample_extractions.jsonl
+!outputs/week5/sample_events.jsonl
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Secrets
+*.key
+*.pem
+*.p12
