@@ -1,0 +1,51 @@
+version: 2
+
+models:
+  - name: week3_extractions
+    description: "Extracted facts from documents with confidence scores"
+    columns:
+      - name: doc_id
+        description: "Unique document identifier"
+        tests:
+          - not_null
+          - unique
+      
+      - name: source_hash
+        description: "SHA-256 hash of source document"
+        tests:
+          - not_null
+      
+      - name: extraction_model
+        description: "Model used for extraction"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['claude-3-5-sonnet', 'gpt-4-turbo', 'gemini-pro']
+      
+      - name: extracted_at
+        description: "Timestamp of extraction"
+        tests:
+          - not_null
+      
+      - name: fact_confidence
+        description: "Confidence score (0.0-1.0)"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['range:0.0-1.0']
+      
+      - name: fact_fact_id
+        description: "Unique fact identifier"
+        tests:
+          - not_null
+          - unique
+      
+      - name: fact_page_ref
+        description: "Page number where fact was found"
+        tests:
+          - not_null
+      
+      - name: processing_time_ms
+        description: "Processing time in milliseconds"
+        tests:
+          - not_null

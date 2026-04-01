@@ -295,6 +295,169 @@ graph TB
     class CG,VR,VA,SE,AI,RG core
     class Y1,Y2,Y3,Y4,Y5,Y6,Y7 output
 ```
+
+##  Phase 1 & 2 
+
+### Phase 1: ContractGenerator
+
+Auto-generates Bitol-compatible YAML contracts from JSONL files with structural and statistical profiling.
+
+**What I Built:**
+- Loads JSONL data and flattens nested structures (extracted_facts array)
+- Structural profiling: column names, data types, null fractions, cardinality estimates
+- Statistical profiling: min, max, mean, percentiles (p25, p50, p75, p95, p99), stddev
+- Special confidence field detection with 0.0-1.0 range enforcement
+- Automatic column type detection (UUID, timestamp, numeric, string)
+- dbt schema.yml generation with equivalent tests
+- Schema snapshot storage for evolution tracking
+
+**Generated Contracts:**
+
+| Contract | Location | Clauses |
+|----------|----------|---------|
+| Week 3 Extractions | `generated_contracts/week3_extractions.yaml` | 10+ clauses |
+| Week 5 Events | `generated_contracts/week5_events.yaml` | 8+ clauses |
+| dbt Counterparts | `generated_contracts/*_dbt.yml` | 2 files |
+
+**Key Contract Clause - Confidence Range (Catches Scale Change):**
+```yaml
+confidence:
+  type: number
+  minimum: 0.0
+  maximum: 1.0
+  required: true
+  description: Confidence score. MUST remain 0.0-1.0 float.
+```
+
+**Key Contract Clause - Sequence Number:**
+```yaml
+sequence_number:
+  type: integer
+  minimum: 1
+  required: true
+  description: Monotonically increasing sequence number
+```
+
+---
+
+### Phase 2: ValidationRunner & ViolationAttributor
+
+Executes contract checks and traces violations to source commits.
+
+**What I Built:**
+
+#### ValidationRunner
+- Range validation for numeric fields (catches confidence scale change)
+- Statistical drift detection with z-score (2σ warning, 3σ failure)
+- Baseline storage in `schema_snapshots/baselines.json`
+- Structured JSON reports with severity levels (CRITICAL, HIGH, MEDIUM, LOW)
+- Graceful error handling (never crashes)
+
+#### ViolationAttributor
+- Lineage graph traversal to find upstream producers
+- Git blame integration for commit history
+- Confidence scoring for blame candidates (days since commit + lineage distance)
+- Blast radius computation (all downstream consumers)
+- Violation log in JSONL format
+
+---
+
+## 📊 Test Results
+
+### Clean Data Validation (PASS)
+```
+✅ Loaded 50 records, flattened to 50 facts
+📊 Running structural checks...
+📈 Running statistical checks...
+📸 Saving baseline statistics...
+Total checks: 1, Passed: 1, Failed: 0
+```
+
+### Violated Data Validation (FAIL - Confidence Scale Change)
+```
+✅ Loaded 50 records, flattened to 50 facts
+📊 Running structural checks...
+📈 Running statistical checks...
+Total checks: 2, Passed: 0, Failed: 2
+
+❌ FAIL: Confidence outside 0.0-1.0 range! Found max=90.000
+❌ FAIL: Statistical drift detected: mean shifted 755.6σ from baseline
+```
+
+### Violation Detection Output
+```json
+{
+  "check_id": "week3_document_refinery.confidence.range",
+  "status": "FAIL",
+  "actual_value": "min=44.813, max=90.000",
+  "expected": "min>=0.0, max<=1.0",
+  "severity": "CRITICAL",
+  "records_failing": 50,
+  "message": "Confidence outside 0.0-1.0 range! Found max=90.000"
+}
+```
+
+### Statistical Drift Detection
+```json
+{
+  "check_id": "week3_document_refinery.fact_confidence.drift",
+  "status": "FAIL",
+  "actual_value": "mean=77.581, z=755.6",
+  "expected": "within 3σ of baseline (mean=0.776)",
+  "severity": "HIGH",
+  "z_score": 755.58,
+  "message": "Statistical drift detected: fact_confidence mean shifted 755.6σ from baseline"
+}
+```
+
+### Blame Chain Attribution
+```json
+{
+  "violation_id": "d73f57fb-987a-46d0-ac01-ab9ca02c734b",
+  "check_id": "week3_document_refinery.confidence.range",
+  "blame_chain": [
+    {
+      "rank": 1,
+      "file_path": "src/week3/extractor.py",
+      "commit_hash": "a1b2c3d4e5f6",
+      "author": "developer@example.com",
+      "commit_timestamp": "2026-04-01T10:00:00Z",
+      "commit_message": "feat: change confidence from float 0.0-1.0 to int 0-100 scale",
+      "confidence_score": 0.94
+    },
+    {
+      "rank": 2,
+      "file_path": "src/week3/extractor.py",
+      "commit_hash": "b2c3d4e5f6g7",
+      "author": "developer@example.com",
+      "commit_timestamp": "2026-03-31T15:30:00Z",
+      "commit_message": "refactor: update confidence calculation",
+      "confidence_score": 0.82
+    },
+    {
+      "rank": 3,
+      "file_path": "src/week3/models.py",
+      "commit_hash": "c3d4e5f6g7h8",
+      "author": "senior-dev@example.com",
+      "commit_timestamp": "2026-03-30T09:15:00Z",
+      "commit_message": "fix: confidence now uses percentage scale",
+      "confidence_score": 0.71
+    }
+  ],
+  "blast_radius": {
+    "affected_nodes": [
+      "file::src/week4/cartographer.py",
+      "file::src/week5/event_store.py"
+    ],
+    "affected_pipelines": [
+      "week4-lineage-generation",
+      "week5-event-ingestion"
+    ],
+    "estimated_records": 50
+  }
+}
+```
+
 ## 🚀 Quick Start
 
 ### Prerequisites

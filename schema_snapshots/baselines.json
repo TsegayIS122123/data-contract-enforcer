@@ -1,0 +1,17 @@
+{
+  "written_at": "2026-04-01T18:13:26.860875",
+  "columns": {
+    "processing_time_ms": {
+      "mean": 1634.08,
+      "stddev": 781.333915395293
+    },
+    "fact_confidence": {
+      "mean": 0.7758131913469885,
+      "stddev": 0.10165126082215602
+    },
+    "fact_page_ref": {
+      "mean": 10.72,
+      "stddev": 5.79950736824135
+    }
+  }
+}

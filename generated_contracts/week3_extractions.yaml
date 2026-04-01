@@ -1,0 +1,80 @@
+kind: DataContract
+apiVersion: v3.0.0
+id: week3_document_refinery
+info:
+  title: Week3 Data Contract
+  version: 1.0.0
+  owner: week3-team
+  description: Auto-generated contract for extractions.jsonl
+servers:
+  local:
+    type: local
+    path: outputs\week3\extractions.jsonl
+    format: jsonl
+terms:
+  usage: Internal inter-system data contract
+  limitations: Confidence must remain 0.0-1.0 float range
+schema:
+  extracted_facts:
+    type: array
+    items:
+      confidence:
+        type: number
+        minimum: 0.0
+        maximum: 1.0
+        required: true
+        description: Confidence score. MUST remain 0.0-1.0 float.
+      fact_id: {}
+      page_ref:
+        type: integer
+        required: true
+        description: Numeric field
+        minimum: 1.0
+        maximum: 20.0
+  doc_id:
+    type: string
+    format: uuid
+    required: true
+    unique: true
+    description: Unique identifier
+  source_path:
+    type: string
+    required: true
+    description: String field
+  source_hash:
+    type: string
+    required: true
+    description: String field
+  extraction_model:
+    type: string
+    pattern: ^(claude|gpt|gemini)-
+    required: true
+    description: Model identifier
+  processing_time_ms:
+    type: integer
+    required: true
+    description: Numeric field
+    minimum: 598.0
+    maximum: 2988.0
+  extracted_at:
+    type: string
+    format: date-time
+    required: true
+    description: Timestamp
+quality:
+  type: SodaChecks
+  specification:
+    checks for data:
+    - missing_count(doc_id) = 0
+    - missing_count(source_path) = 0
+    - missing_count(source_hash) = 0
+    - missing_count(extraction_model) = 0
+    - missing_count(processing_time_ms) = 0
+    - missing_count(extracted_at) = 0
+    - max(fact_confidence) <= 1.0
+    - min(fact_confidence) >= 0.0
+    - row_count >= 1
+lineage:
+  upstream: []
+  downstream: []
+generated_at: '2026-04-01T17:50:51.487007'

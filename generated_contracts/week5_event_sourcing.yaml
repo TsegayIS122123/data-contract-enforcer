@@ -1,0 +1,74 @@
+kind: DataContract
+apiVersion: v3.0.0
+id: week5_event_sourcing
+info:
+  title: Week5 Data Contract
+  version: 1.0.0
+  owner: week5-team
+  description: Auto-generated contract for events.jsonl
+servers:
+  local:
+    type: local
+    path: outputs\week5\events.jsonl
+    format: jsonl
+terms:
+  usage: Internal inter-system data contract
+  limitations: Confidence must remain 0.0-1.0 float range
+schema:
+  event_id:
+    type: string
+    format: uuid
+    required: true
+    unique: true
+    description: Unique identifier
+  event_type:
+    type: string
+    required: true
+    description: Type of event
+  aggregate_id:
+    type: string
+    format: uuid
+    required: true
+    unique: true
+    description: Unique identifier
+  aggregate_type:
+    type: string
+    required: true
+    description: String field
+  sequence_number:
+    type: integer
+    minimum: 1
+    required: true
+    description: Monotonically increasing sequence number
+  schema_version:
+    type: string
+    required: true
+    description: String field
+  occurred_at:
+    type: string
+    format: date-time
+    required: true
+    description: Timestamp
+  recorded_at:
+    type: string
+    format: date-time
+    required: true
+    description: Timestamp
+quality:
+  type: SodaChecks
+  specification:
+    checks for data:
+    - missing_count(event_id) = 0
+    - missing_count(event_type) = 0
+    - missing_count(aggregate_id) = 0
+    - missing_count(aggregate_type) = 0
+    - missing_count(sequence_number) = 0
+    - missing_count(schema_version) = 0
+    - missing_count(occurred_at) = 0
+    - missing_count(recorded_at) = 0
+    - min(sequence_number) >= 1
+    - row_count >= 1
+lineage:
+  upstream: []
+  downstream: []
+generated_at: '2026-04-01T17:55:19.745166'
