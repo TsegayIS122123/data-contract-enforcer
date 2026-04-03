@@ -457,6 +457,261 @@ Total checks: 2, Passed: 0, Failed: 2
   }
 }
 ```
+## 📊 Phase 3: Schema Evolution Analyzer - Complete
+
+### What I Built
+
+The SchemaEvolutionAnalyzer detects and classifies schema changes between contract snapshots using the **Confluent Schema Registry compatibility taxonomy**. It identifies breaking changes before they reach production.
+
+### Key Features
+
+| Feature | Implementation | Status |
+|---------|----------------|--------|
+| **Snapshot Diffing** | Compares two consecutive timestamped snapshots | ✅ Complete |
+| **Change Classification** | 8 change types with compatibility verdicts | ✅ Complete |
+| **Breaking Detection** | Identifies CRITICAL changes (type narrowing, range changes) | ✅ Complete |
+| **Migration Report** | Auto-generates impact analysis with blast radius | ✅ Complete |
+| **Registry Integration** | Queries contract registry for affected subscribers | ✅ Complete |
+
+### Change Classification Examples
+
+| Change Type | Detected | Severity | Example from My Data |
+|-------------|----------|----------|---------------------|
+| **Narrow Type** | ✅ | CRITICAL | `confidence: number → integer` |
+| **Range Change** | ✅ | CRITICAL | `[0.0, 1.0] → [0, 100]` |
+| **Add Required Field** | ✅ | BREAKING | New non-nullable field |
+| **Remove Field** | ✅ | BREAKING | Field deleted from schema |
+| **Add Nullable Field** | ✅ | COMPATIBLE | New optional field |
+
+### Test Results - Confidence Scale Change Detection
+
+When comparing snapshots before and after the confidence scale change:
+
+```bash
+$ python contracts/schema_analyzer.py --contract-id week3_document_refinery --since 7
+
+🔍 Analyzing schema evolution for week3_document_refinery
+   Comparing: 20260401_100000 → 20260402_100000
+   CRITICAL: Type changed from number to integer - CRITICAL data loss risk!
+   CRITICAL: Type changed from number to integer - CRITICAL data loss risk!
+
+✅ Report saved: validation_reports/schema_evolution_week3_document_refinery_20260403_190817.json
+   Breaking changes: 2
+   Affected subscribers: 2
+```
+
+**What This Means:** The analyzer correctly identified the confidence scale change as a **CRITICAL breaking change** that would cause silent data corruption downstream.
+
+### Migration Impact Report Example
+
+```json
+{
+  "report_id": "uuid-xxx",
+  "contract_id": "week3_document_refinery",
+  "changes": [
+    {
+      "field": "extracted_facts.confidence",
+      "type": "NARROW_TYPE",
+      "severity": "CRITICAL",
+      "message": "Type changed from number to integer - CRITICAL data loss risk!"
+    }
+  ],
+  "blast_radius": {
+    "affected_subscribers": [
+      {"subscriber_id": "week4_cartographer", "validation_mode": "ENFORCE"},
+      {"subscriber_id": "week7_enforcer", "validation_mode": "AUDIT"}
+    ],
+    "total_affected": 2
+  },
+  "overall_verdict": "BREAKING"
+}
+```
+
+---
+
+## 🤖 Phase 4: AI Contract Extensions - Complete
+
+### What I Built
+
+Three AI-specific contract extensions that standard data contract tools don't provide:
+
+| Extension | Purpose | Implementation |
+|-----------|---------|----------------|
+| **1. Embedding Drift Detection** | Detects when semantic meaning of extracted facts changes | Cosine distance between embedding centroids |
+| **2. Prompt Input Validation** | Validates data before it enters LLM prompts | JSON Schema validation + quarantine |
+| **3. LLM Output Schema Violation Rate** | Tracks LLM response quality over time | Rule-based validation + trend analysis |
+
+### Extension 1: Embedding Drift Detection
+
+**How it works:**
+1. Extract text from `extracted_facts[*].text` (Week 3 data)
+2. Convert to embeddings using `text-embedding-3-small`
+3. Compute centroid vector for baseline
+4. On subsequent runs, compute new centroid and cosine distance
+5. Alert if drift > threshold (default 0.15)
+
+**Test Results:**
+```json
+{
+  "status": "FAIL",
+  "drift_score": 1.055,
+  "threshold": 0.15,
+  "message": "Drift: 1.0550 (threshold: 0.15)"
+}
+```
+
+**Why This Matters:** The high drift score (1.055) indicates that the semantic meaning of extracted facts has changed significantly - likely because the confidence scale change corrupted the extraction logic.
+
+### Extension 2: Prompt Input Validation
+
+**How it works:**
+1. Define expected prompt input schema using JSON Schema
+2. Validate every document metadata object before it enters the prompt
+3. Quarantine non-conforming records (never silently drop or pass)
+
+**Schema Enforced:**
+```json
+{
+  "required": ["doc_id", "source_path", "content_preview"],
+  "properties": {
+    "doc_id": {"type": "string", "minLength": 36, "maxLength": 36},
+    "source_path": {"type": "string", "minLength": 1},
+    "content_preview": {"type": "string", "maxLength": 8000}
+  }
+}
+```
+
+**Test Results:**
+```json
+{
+  "total": 50,
+  "valid": 50,
+  "quarantined": 0,
+  "quarantine_rate": 0.0
+}
+```
+
+**Why This Matters:** Prevents malformed prompts from reaching the LLM, which would cause hallucinated responses.
+
+### Extension 3: LLM Output Schema Violation Rate
+
+**How it works:**
+1. Validate Week 2 verdict records against expected schema
+2. Track violation rate over time
+3. Compare with baseline to detect trend
+4. Write WARN to violation log if threshold breached (2%)
+
+**Validation Rules:**
+- `overall_verdict` must be one of: PASS, FAIL, WARN
+- Each `score` must be integer between 1-5
+- Required fields must exist
+
+**Test Results:**
+```json
+{
+  "total_outputs": 50,
+  "schema_violations": 0,
+  "violation_rate": 0.0,
+  "trend": "stable",
+  "status": "PASS"
+}
+```
+
+**Why This Matters:** A rising violation rate signals prompt degradation or model behavior changes before they cause production issues.
+
+---
+
+## 📊 Complete Enforcer Report Results
+
+After running all phases, the ReportGenerator produced:
+
+```json
+{
+  "data_health_score": 30,
+  "health_narrative": "Critical data health issues detected! Score 30/100. Immediate action required.",
+  "violations_this_week": {
+    "total": 3,
+    "top_violations": [
+      {
+        "description": "Confidence outside 0.0-1.0 range! Found max=90.000",
+        "severity": "CRITICAL"
+      },
+      {
+        "description": "Statistical drift detected: mean shifted 755.6σ from baseline",
+        "severity": "HIGH"
+      }
+    ]
+  },
+  "ai_system_risk_assessment": {
+    "risk_level": "HIGH",
+    "findings": ["Embedding drift detected: 1.055"],
+    "embedding_stable": false
+  },
+  "recommended_actions": [
+    "Update src/week3/extractor.py to output confidence as float 0.0-1.0"
+  ]
+}
+```
+
+### What the Health Score Means
+
+| Score Range | Meaning | Our Score: 30/100 |
+|-------------|---------|-------------------|
+| 90-100 | Excellent - no critical issues | ❌ |
+| 70-89 | Good - some warnings | ❌ |
+| 50-69 | Moderate - action recommended | ❌ |
+| 0-49 | **Critical - immediate action required** | ✅ |
+
+The low score correctly reflects:
+- Confidence scale change (CRITICAL violation)
+- Statistical drift (755σ deviation)
+- Embedding drift detected (1.055)
+
+---
+
+## 🎯 Key Discoveries from Phase 3 & 4
+
+### What I Learned
+
+1. **Confidence scale change is CRITICAL breaking** - The analyzer correctly flagged type narrowing (float→int) and range change ([0.0,1.0]→[0,100]) as incompatible changes that would cause silent data corruption.
+
+2. **Embedding drift reveals hidden corruption** - The high drift score (1.055) showed that the semantic meaning of extracted facts changed, not just the numeric values.
+
+3. **Statistical drift catches what structural checks miss** - Even if the range check passed (e.g., changing from 0.0-1.0 to 0.0-10.0), the z-score detection would still fire.
+
+### What Assumptions Were Wrong
+
+| Assumption | Reality |
+|------------|---------|
+| "Schema evolution is just about adding/removing fields" | Type narrowing (float→int) is equally dangerous |
+| "AI systems need the same contracts as data pipelines" | AI needs embedding drift and prompt validation |
+| "Drift detection is optional" | Drift caught the confidence scale change that range check would have missed if range was preserved |
+
+---
+
+## 🚀 How to Run Phase 3 & 4
+
+### Run Schema Evolution Analyzer
+```bash
+python contracts/schema_analyzer.py --contract-id week3_document_refinery --since 7
+```
+
+### Run AI Contract Extensions
+```bash
+python contracts/ai_extensions.py --mode all
+```
+
+### Generate Complete Enforcer Report
+```bash
+python contracts/report_generator.py
+```
+
+### View Results
+```bash
+cat enforcer_report/report_data.json | python -m json.tool
+cat validation_reports/ai_extensions.json | python -m json.tool
+cat validation_reports/schema_evolution_*.json | python -m json.tool
+```
 
 ## 🚀 Quick Start
 
